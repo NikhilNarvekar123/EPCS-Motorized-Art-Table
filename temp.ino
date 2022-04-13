@@ -1,90 +1,105 @@
+#include <IRremote.h>
+
+const int click_pin = 2;
+const int motor_in3 = 4;
+const int motor_in4 = 3;
+const int motor_dir_pin = 10;
+const int motor_step_pin = 9;
+const int enable = 13;
+const int steps_per_rev = 1000;
+const int receiver_pin = 7;
+
+// setup receiver
+IRrecv irrecv(receiver_pin);
+decode_results results;
+
+// remote variables
+const unsigned int U_MAX_INT = 4294967295;
+const int UP_VAL = 16750695;
+const int DOWN_VAL = 16726215;
+const int LEFT_VAL = 16743045; //temp
+const int RIGHT_VAL = 16724175; //temp
+int remote_val = 0;
 
 
-
-// joystick -- butttons 
-// connect functions to motors
-
-
-// Constants
-const int vertPulse = P2_4;
-const int vertDir = P2_5;
-const int vertML = P2_3;
-const int vertMR = P2_7;
-
-// Variable
-int vertMotion = P4_1 ; // Y-axis from joystick
-int rotMotion = P4_0;   // x-axis from joystick
-int lock = P4_2;        // joystick button locks motion    
-int lightB = P1_6;      // light button        
-int valX = 0;           // easy to use data from joystick
-int valY = 0;           // easy to use data from joystick
-int valL = 0;           // indicates whether motion is locked or not
-
-int VBR = P3_3;         // vertical rotation brake
-int HBR = P3_2;         // horizontal rotation brake
-
-int brake = 0;          // value used to indicate board light values
-int brakeTR = 0;        // to indicate if brake is active or not
-int brakeTL = 0;        // to indicate if brake is active or not
-int brakeBL = 0;        // to indicate if brake is active or not
-int brakeVR = 0;        // to indicate if brake is active or not
-int brakeHR = 0;        // to indicate if brake is active or not
-int lightA = 0;         // to indicate if light is on or not
-
-
+// setup function
 void setup() {
+  pinMode(click_pin, INPUT_PULLUP);
+  pinMode(motor_in3, OUTPUT);
+  pinMode(motor_in4, OUTPUT);
+  pinMode(enable, OUTPUT);
+  pinMode(motor_dir_pin, OUTPUT);
+  pinMode(motor_step_pin, OUTPUT);
+  irrecv.enableIRIn();
   
   Serial.begin(9600);
-  pinMode(light, OUTPUT);         //  lamp
-  pinMode(lightB, INPUT_PULLUP);  // lamp button
-  attachInterrupt(digitalPinToInterrupt(lightB),LIGHT,RISING); 
-
-  pinMode(vertPulse, OUTPUT);     
-  pinMode(vertDir, OUTPUT);    
-  pinMode(vertML, OUTPUT);     
-  pinMode(vertMR, OUTPUT);
-  
-  /*BRAKES*/
-  pinMode(TBL, INPUT_PULLUP);
-  pinMode(TBR, INPUT_PULLUP);
-  pinMode(BBL, INPUT_PULLUP);
-  pinMode(VBR, INPUT_PULLUP);
-  pinMode(HBR, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(TBL),SWITCHES, LOW);
-  attachInterrupt(digitalPinToInterrupt(TBR),SWITCHES, LOW);
-  attachInterrupt(digitalPinToInterrupt(BBL),SWITCHES, LOW);
-  attachInterrupt(digitalPinToInterrupt(VBR),SWITCHES, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(HBR),SWITCHES, CHANGE);
-
-  pinMode(lock, INPUT_PULLUP);  // setup lock
-  attachInterrupt(digitalPinToInterrupt(lock),LOCK, RISING); // lock is interrupt
-  
-  
 }
 
 
-
-
-
+// loop every 500 ms
+// delay incremented for smoother IR operation
 void loop() {
 
-  if(valL == 1) {
+  // set actuator motor speed
+  analogWrite(enable, 500);
+
+  // 1 if button pressed, 0 otherwise
+  if (irrecv.decode(&results)) {
+
+    // using ints has lot smaller values, use instead??
+    Serial.println(results.value);
+    print_remote_val(results.value);
+    irrecv.resume();
+
+    // update remote variable only if button is not
+    // being pressed down
+    if (results.value != U_MAX_INT) {
+      remote_val = results.value;
+    }
     
+    // based on remote_val set motor direction
+    switch (remote_val) {
+      case UP_VAL:
+        digitalWrite(motor_in3, HIGH);
+        digitalWrite(motor_in4, LOW);
+        delay(500);
+        break;
+      case DOWN_VAL:
+        digitalWrite(motor_in3, LOW);
+        digitalWrite(motor_in4, HIGH);
+        delay(500);
+        break;
+      case LEFT_VAL:
+        digitalWrite(motor_dir_pin, HIGH);
+        for(int x = 0; x < steps_per_rev; x++) {
+          digitalWrite(motor_step_pin, HIGH);
+          delayMicroseconds(10); 
+          digitalWrite(motor_step_pin, LOW); 
+          delayMicroseconds(10);
+        }
+      case RIGHT_VAL:
+        digitalWrite(motor_dir_pin, LOW);
+        for(int x = 0; x < steps_per_rev; x++) {
+          digitalWrite(motor_step_pin, HIGH);
+          delayMicroseconds(10); 
+          digitalWrite(motor_step_pin, LOW); 
+          delayMicroseconds(10);
+        }
+    }
+    
+  } else {
+    // no remote value so all motors off
+    digitalWrite(motor_in3, LOW);
+    digitalWrite(motor_in4, LOW);
   }
 
-  
 }
 
 
-
-void LOCK(){
-    // DISABLING MOTION
-  if ( (digitalRead(lock) == 1)&&(valL == 0)){
-    valL = 1;
-  }
-    // ENABLING MOTION
-  else if ( (digitalRead(lock) == 1)&&(valL == 1)){
-    valL = 0;
-  }
+// print remote val
+void print_remote_val(int val) {
+  Serial.println(" ");
+  Serial.print("Code: ");
+  Serial.println(val);
+  Serial.println(" ");
 }
-
