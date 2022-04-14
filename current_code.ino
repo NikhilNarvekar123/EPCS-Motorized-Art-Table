@@ -1,21 +1,24 @@
 #include <IRremote.h>
 
+// pins
 const int click_pin = 2;
 const int motor_in3 = 4;
 const int motor_in4 = 3;
+const int motor_dir_pin = 10;
+const int motor_step_pin = 9;
 const int enable = 13;
-int receiver_pin = 7;
+const int steps_per_rev = 16000;
+const int receiver_pin = 7;
 
 // setup receiver
 IRrecv irrecv(receiver_pin);
 decode_results results;
 
 // remote variables
-const unsigned int U_MAX_INT = 4294967295;
-const int UP_VAL = 16750695;
-const int DOWN_VAL = 16726215;
-const int LEFT_VAL = 10; //temp
-const int RIGHT_VAL = 11; //temp
+const int UP_VAL = -26521;
+const int DOWN_VAL = 14535;
+const int LEFT_VAL = 12495;
+const int RIGHT_VAL = 31365;
 int remote_val = 0;
 
 
@@ -25,55 +28,62 @@ void setup() {
   pinMode(motor_in3, OUTPUT);
   pinMode(motor_in4, OUTPUT);
   pinMode(enable, OUTPUT);
+  pinMode(motor_dir_pin, OUTPUT);
+  pinMode(motor_step_pin, OUTPUT);
+  
   irrecv.enableIRIn();
+  digitalWrite(motor_dir_pin, HIGH);
   
   Serial.begin(9600);
 }
 
 
-// loop every 500 ms
-// delay incremented for smoother IR operation
+// loop
 void loop() {
 
   // set actuator motor speed
   analogWrite(enable, 500);
 
-  // 1 if button pressed, 0 otherwise
-  if (irrecv.decode(&results)) {
-    
-    print_remote_val(results.value);
-    irrecv.resume();
+  // turn actuator off
+  digitalWrite(motor_in3, LOW);
+  digitalWrite(motor_in4, LOW);
 
-    // update remote variable only if button is not
-    // being pressed down
-    if (results.value != U_MAX_INT) {
-      remote_val = results.value;
-    }
-    
-    // based on remote_val set motor direction
-    switch (remote_val) {
-      case UP_VAL:
-        digitalWrite(motor_in3, HIGH);
-        digitalWrite(motor_in4, LOW);
-        break;
-      case DOWN_VAL:
-        digitalWrite(motor_in3, LOW);
-        digitalWrite(motor_in4, HIGH);
-        break;
-      case LEFT_VAL:
-        break;
-      case RIGHT_VAL:
-        break;
-    }
-    
-  } else {
-    // no remote value so all motors off
-    digitalWrite(motor_in3, LOW);
-    digitalWrite(motor_in4, LOW);
+  // wait until any button is pressed
+  while(!(irrecv.decode(&results)));
+  irrecv.resume();
+  
+  print_remote_val(results.value);
+
+  // if button being held, don't update remote_val
+  if (int(results.value) != -1) {
+    remote_val = results.value;
   }
 
-  // increment/decrement to adjust motor smoothness
-  delay(500);
+  // change rotational motor direction based on button
+  if (remote_val == LEFT_VAL) {
+    digitalWrite(motor_dir_pin, HIGH);
+  } else if (remote_val == RIGHT_VAL) {
+    digitalWrite(motor_dir_pin, LOW);
+  }
+
+  // choose proper motor action based on remote value
+  if (remote_val == LEFT_VAL || remote_val == RIGHT_VAL) {
+      for(int i = 0; i < steps_per_rev; i++) {
+        digitalWrite(motor_step_pin, HIGH);
+        delayMicroseconds(10); 
+        digitalWrite(motor_step_pin, LOW); 
+        delayMicroseconds(10);
+      }   
+    } else if (remote_val == UP_VAL) {
+        digitalWrite(motor_in3, LOW);
+        digitalWrite(motor_in4, HIGH);
+        delay(500);
+    } else if (remote_val == DOWN_VAL) {
+        digitalWrite(motor_in3, HIGH);
+        digitalWrite(motor_in4, LOW);
+        delay(500);
+    } 
+
 }
 
 
