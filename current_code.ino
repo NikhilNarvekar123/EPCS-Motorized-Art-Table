@@ -10,6 +10,12 @@ const int enable = 13;
 const int steps_per_rev = 16000;
 const int receiver_pin = 7;
 
+
+//
+const int brake_in1 = 1;
+const int brake_in2 = 2;
+const int brake_enable = 12;
+
 // setup receiver
 IRrecv irrecv(receiver_pin);
 decode_results results;
@@ -30,6 +36,11 @@ void setup() {
   pinMode(enable, OUTPUT);
   pinMode(motor_dir_pin, OUTPUT);
   pinMode(motor_step_pin, OUTPUT);
+
+  pinMode(brake_in1, OUTPUT);
+  pinMode(brake_in2, OUTPUT);
+  pinMode(brake_enable, OUTPUT);
+  
   
   irrecv.enableIRIn();
   digitalWrite(motor_dir_pin, HIGH);
@@ -41,13 +52,18 @@ void setup() {
 // loop
 void loop() {
 
-  // set actuator motor speed
+  // set actuator & brake motor speed
   analogWrite(enable, 500);
+  analogWrite(brake_enable, 500);
 
   // turn actuator off
   digitalWrite(motor_in3, LOW);
   digitalWrite(motor_in4, LOW);
 
+  // turn brake on
+  digitalWrite(brake_in1, HIGH);
+  digitalWrite(brake_in2, HIGH);
+  
   // wait until any button is pressed
   while(!(irrecv.decode(&results)));
   irrecv.resume();
@@ -68,12 +84,18 @@ void loop() {
 
   // choose proper motor action based on remote value
   if (remote_val == LEFT_VAL || remote_val == RIGHT_VAL) {
+
+      // turn brake off
+      digitalWrite(brake_in1, LOW);
+      digitalWrite(brake_in2, LOW);
+
+      // complete N steps
       for(int i = 0; i < steps_per_rev; i++) {
         digitalWrite(motor_step_pin, HIGH);
         delayMicroseconds(10); 
         digitalWrite(motor_step_pin, LOW); 
         delayMicroseconds(10);
-      }   
+      }
     } else if (remote_val == UP_VAL) {
         digitalWrite(motor_in3, LOW);
         digitalWrite(motor_in4, HIGH);
