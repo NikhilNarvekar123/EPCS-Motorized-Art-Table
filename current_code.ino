@@ -7,12 +7,9 @@ const int motor_in4 = 3;
 const int motor_dir_pin = 10;
 const int motor_step_pin = 9;
 const int enable = 13;
-const int steps_per_rev = 16000;
+const int steps_per_rev = 3000;
 const int receiver_pin = 7;
-
-
-//
-const int brake_in1 = 1;
+const int brake_in1 = 1; 
 const int brake_in2 = 2;
 const int brake_enable = 12;
 
@@ -92,9 +89,9 @@ void loop() {
       // complete N steps
       for(int i = 0; i < steps_per_rev; i++) {
         digitalWrite(motor_step_pin, HIGH);
-        delayMicroseconds(10); 
+        delayMicroseconds(100); 
         digitalWrite(motor_step_pin, LOW); 
-        delayMicroseconds(10);
+        delayMicroseconds(100);
       }
     } else if (remote_val == UP_VAL) {
         digitalWrite(motor_in3, LOW);
